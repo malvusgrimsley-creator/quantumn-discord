@@ -1,5 +1,5 @@
 {
-  "name": "key-bot",
+  "name": "key-bot-discord",
   "version": "1.0.0",
   "description": "Discord bot for generating Roblox keys",
   "main": "index.js",
