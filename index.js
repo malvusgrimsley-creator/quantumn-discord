@@ -22,7 +22,7 @@ const client = new Client({
 });
 
 // ⚠️ REPLACE WITH YOUR DISCORD USER ID ⚠️
-const ADMIN_USERS = ['YOUR_DISCORD_USER_ID'];
+const ADMIN_USERS = ['1506534999204298923'];
 
 // Key type configurations
 const KEY_TYPES = {
@@ -80,11 +80,11 @@ function generateKey(type) {
 // Update website (JSONBin)
 async function updateWebsiteKey(key, type) {
     try {
-        const response = await fetch(`https://api.jsonbin.io/v3/b/${process.env.JSONBIN_ID}`, {
+        const response = await fetch(`https://api.jsonbin.io/v3/b/${process.env.6a2cd289da38895dfeb8ac3b}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                'X-Master-Key': process.env.JSONBIN_MASTER_KEY
+                'X-Master-Key': process.env.$2a$10$hJ/FocyDPeHkkqIY0z4qzuvdTP.QEbGACgo2F3m1qMxOzJ4HB3mcS
             },
             body: JSON.stringify({
                 key: key,
@@ -244,4 +244,4 @@ client.on('messageCreate', async (message) => {
 });
 
 // Login
-client.login(process.env.DISCORD_TOKEN);
+client.login(process.env.MTUxNTI4MDg3OTMzMTcwODk4OA.Gx6PDH.mphXzBDC5AWlnFWam0uiItBQ61b_Z_W7Wsf7Xs);
