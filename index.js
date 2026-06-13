@@ -80,11 +80,11 @@ function generateKey(type) {
 // Update website (JSONBin)
 async function updateWebsiteKey(key, type) {
     try {
-        const response = await fetch(`https://api.jsonbin.io/v3/b/${process.env.6a2cd289da38895dfeb8ac3b}`, {
+        const response = await fetch(`https://api.jsonbin.io/v3/b/${process.env.JSONBIN_ID}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                'X-Master-Key': process.env.$2a$10$hJ/FocyDPeHkkqIY0z4qzuvdTP.QEbGACgo2F3m1qMxOzJ4HB3mcS
+                'X-Master-Key': process.env.JSONBIN_MASTER_KEY
             },
             body: JSON.stringify({
                 key: key,
@@ -244,4 +244,4 @@ client.on('messageCreate', async (message) => {
 });
 
 // Login
-client.login(process.env.MTUxNTI4MDg3OTMzMTcwODk4OA.Gx6PDH.mphXzBDC5AWlnFWam0uiItBQ61b_Z_W7Wsf7Xs);
+client.login(process.env.DISCORD_BOT_TOKEN);
