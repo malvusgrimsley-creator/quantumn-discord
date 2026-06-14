@@ -24,10 +24,10 @@ const CONFIG = {
     jsonBinId: '6a2cd289da38895dfeb8ac3b',
     jsonBinKey: '$2a$10$hJ/FocyDPeHkkqIY0z4qzuvdTP.QEbGACgo2F3m1qMxOzJ4HB3mcS',
     minInvites: 4,
-    keyExpiryHours: 24
+    keyExpiryHours: 24,
+    restrictedChannelId: '1515761196156977263'
 };
 
-// Track invites per user
 const inviteCache = new Map();
 
 function generateKey() {
@@ -39,9 +39,6 @@ function generateKey() {
     key += '-' + Math.random().toString(36).substring(2, 5).toUpperCase();
     return key;
 }
-
-// Store used keys so they can't be reused
-const usedKeys = new Set();
 
 async function getAllKeys() {
     try {
@@ -78,7 +75,6 @@ async function updateKeys(keysData) {
 async function addKey(key, userId, username) {
     const allKeys = await getAllKeys();
     
-    // Initialize keys object if it doesn't exist
     if (!allKeys.keys) {
         allKeys.keys = {};
     }
@@ -112,7 +108,6 @@ client.once('ready', async () => {
     console.log(`✅ ${client.user.tag} is online!`);
     client.user.setActivity('!redeem for keys', { type: 'WATCHING' });
     
-    // Cache all invites on startup
     client.guilds.cache.forEach(async (guild) => {
         try {
             const invites = await guild.invites.fetch();
@@ -130,7 +125,6 @@ client.once('ready', async () => {
     });
 });
 
-// Track new invites in real-time
 client.on('inviteCreate', (invite) => {
     inviteCache.set(`${invite.guild.id}-${invite.code}`, {
         inviterId: invite.inviter.id,
@@ -138,10 +132,32 @@ client.on('inviteCreate', (invite) => {
     });
 });
 
+// ============================
+// MESSAGE HANDLER WITH AUTO-DELETE
+// ============================
+
 client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
     
-    // !help command
+    // Only enforce auto-delete in the restricted channel
+    if (message.channel.id === CONFIG.restrictedChannelId) {
+        const allowedCommands = ['!redeem', '!help', '!keys'];
+        const isAllowed = allowedCommands.some(cmd => message.content.startsWith(cmd));
+        
+        if (!isAllowed) {
+            try {
+                await message.delete();
+            } catch (err) {
+                // Ignore if missing permissions
+            }
+            return;
+        }
+    }
+    
+    // ============================
+    // !help COMMAND
+    // ============================
+    
     if (message.content === '!help') {
         const embed = new EmbedBuilder()
             .setTitle('🎃 Halloween Event Bot')
@@ -166,13 +182,15 @@ client.on('messageCreate', async (message) => {
         return;
     }
     
-    // !redeem command
+    // ============================
+    // !redeem COMMAND
+    // ============================
+    
     if (message.content === '!redeem') {
         const member = message.member;
         const userId = message.author.id;
         const username = message.author.username;
         
-        // Check invite count
         const inviteCount = await getInviteCount(member);
         
         if (inviteCount < CONFIG.minInvites) {
@@ -189,17 +207,13 @@ client.on('messageCreate', async (message) => {
             return;
         }
         
-        // Generate key
         const key = generateKey();
-        
-        // Store in JSONBin
         const added = await addKey(key, userId, username);
         
         if (!added) {
             return message.reply('❌ Error generating key. Please try again!');
         }
         
-        // Send public confirmation
         const publicEmbed = new EmbedBuilder()
             .setTitle('✅ Key Generated!')
             .setColor(0x00ff88)
@@ -211,7 +225,6 @@ client.on('messageCreate', async (message) => {
         
         await message.reply({ embeds: [publicEmbed] });
         
-        // DM the key to user
         try {
             const dmEmbed = new EmbedBuilder()
                 .setTitle('🎃 YOUR HALLOWEEN EVENT KEY')
@@ -227,7 +240,6 @@ client.on('messageCreate', async (message) => {
             
             await message.author.send({ embeds: [dmEmbed] });
         } catch (dmError) {
-            // If DMs are closed
             const failEmbed = new EmbedBuilder()
                 .setTitle('❌ DM Failed')
                 .setColor(0xff0000)
@@ -239,7 +251,6 @@ client.on('messageCreate', async (message) => {
             
             await message.reply({ embeds: [failEmbed] });
             
-            // Remove the unused key
             const allKeys = await getAllKeys();
             if (allKeys.keys && allKeys.keys[key]) {
                 delete allKeys.keys[key];
@@ -250,7 +261,10 @@ client.on('messageCreate', async (message) => {
         return;
     }
     
-    // Admin command: check all keys
+    // ============================
+    // !keys ADMIN COMMAND
+    // ============================
+    
     if (message.content === '!keys' && message.member.permissions.has('Administrator')) {
         const allKeys = await getAllKeys();
         
