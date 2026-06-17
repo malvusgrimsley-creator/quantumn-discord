@@ -25,7 +25,9 @@ const CONFIG = {
     jsonBinKey: '$2a$10$hJ/FocyDPeHkkqIY0z4qzuvdTP.QEbGACgo2F3m1qMxOzJ4HB3mcS',
     minInvites: 4,
     keyExpiryHours: 24,
-    restrictedChannelId: '1515761196156977263'
+    restrictedChannelId: '1515761196156977263',
+    // Add admin role or user IDs who can use !send (optional - leave empty to allow all admins)
+    allowedSenders: [] // Put user IDs here if you want to restrict to specific people
 };
 
 const inviteCache = new Map();
@@ -139,9 +141,94 @@ client.on('inviteCreate', (invite) => {
 client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
     
+    // ============================
+    // !send COMMAND - NEW!
+    // ============================
+    
+    if (message.content.startsWith('!send')) {
+        // Check permissions: Must be Administrator OR in the allowedSenders list
+        const isAdmin = message.member.permissions.has('Administrator');
+        const isAllowedUser = CONFIG.allowedSenders.includes(message.author.id);
+        
+        if (!isAdmin && !isAllowedUser) {
+            const embed = new EmbedBuilder()
+                .setTitle('❌ Permission Denied')
+                .setColor(0xff0000)
+                .setDescription('You need Administrator permissions to use `!send`.');
+            await message.reply({ embeds: [embed] });
+            return;
+        }
+        
+        // Parse the command
+        const args = message.content.split('\n');
+        const firstLine = args[0].trim(); // "!send <CHANNEL_ID>"
+        const channelId = firstLine.split(' ')[1];
+        
+        // Remove the first line to get the message content
+        args.shift();
+        const messageContent = args.join('\n').trim();
+        
+        // Validation
+        if (!channelId) {
+            await message.reply('❌ Please provide a channel ID.\nFormat: `!send <CHANNEL_ID>\nYour message here`');
+            return;
+        }
+        
+        if (!messageContent) {
+            await message.reply('❌ Please provide a message to send.\nFormat: `!send <CHANNEL_ID>\nYour message here`');
+            return;
+        }
+        
+        // Find the channel
+        const targetChannel = message.guild.channels.cache.get(channelId);
+        
+        if (!targetChannel) {
+            await message.reply(`❌ Could not find channel with ID \`${channelId}\`.`);
+            return;
+        }
+        
+        // Check if bot has permission to send in that channel
+        if (!targetChannel.permissionsFor(message.guild.members.me).has('SendMessages')) {
+            await message.reply(`❌ I don't have permission to send messages in ${targetChannel.name}.`);
+            return;
+        }
+        
+        // Send the message
+        try {
+            await targetChannel.send(messageContent);
+            
+            // Confirm to the sender
+            const confirmEmbed = new EmbedBuilder()
+                .setTitle('✅ Message Sent!')
+                .setColor(0x00ff88)
+                .setDescription(`Message successfully sent to ${targetChannel}`)
+                .addFields(
+                    { name: 'Channel', value: `${targetChannel.name} (${targetChannel.id})`, inline: false },
+                    { name: 'Preview', value: messageContent.length > 200 ? messageContent.slice(0, 200) + '...' : messageContent }
+                );
+            
+            await message.reply({ embeds: [confirmEmbed] });
+            
+            // Delete the command message after 2 seconds (optional)
+            setTimeout(async () => {
+                try {
+                    await message.delete();
+                } catch (err) {
+                    // Ignore if can't delete
+                }
+            }, 2000);
+            
+        } catch (error) {
+            console.error('Error sending message:', error);
+            await message.reply('❌ Failed to send the message. Check the console for errors.');
+        }
+        
+        return;
+    }
+    
     // Only enforce auto-delete in the restricted channel
     if (message.channel.id === CONFIG.restrictedChannelId) {
-        const allowedCommands = ['!redeem', '!help', '!keys'];
+        const allowedCommands = ['!redeem', '!help', '!keys', '!send'];
         const isAllowed = allowedCommands.some(cmd => message.content.startsWith(cmd));
         
         if (!isAllowed) {
@@ -165,7 +252,7 @@ client.on('messageCreate', async (message) => {
             .addFields(
                 { 
                     name: '📋 Commands', 
-                    value: '`!redeem` - Get your event key (requires 4+ invites)\n`!help` - Show this menu' 
+                    value: '`!redeem` - Get your event key (requires 4+ invites)\n`!send` - Send a message to any channel (Admin only)\n`!help` - Show this menu' 
                 },
                 {
                     name: '🎁 How It Works',
@@ -174,6 +261,10 @@ client.on('messageCreate', async (message) => {
                 {
                     name: '⚠️ Rules',
                     value: '• One key per user\n• Keys are single-use only\n• Keys expire in 24 hours\n• Minimum 4 invites required'
+                },
+                {
+                    name: '📨 !send Usage (Admin)',
+                    value: '```\n!send <CHANNEL_ID>\nYour message here\n```\nExample:\n```\n!send 1515761196156977263\n🎃 Spooky announcement!\nEvent starts in 1 hour!\n```'
                 }
             )
             .setFooter({ text: 'Halloween Event 2026' });
